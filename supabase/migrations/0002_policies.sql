@@ -75,6 +75,11 @@ create policy profile_select_self on profiles
 create policy profile_update_self on profiles
   for update using (id = auth.uid()) with check (id = auth.uid());
 
+-- A user may create their own profile row (self-healing onboarding when the
+-- signup trigger has not populated it).
+create policy profile_insert_self on profiles
+  for insert to authenticated with check (id = auth.uid());
+
 -- ===========================================================================
 -- Memberships
 -- ===========================================================================

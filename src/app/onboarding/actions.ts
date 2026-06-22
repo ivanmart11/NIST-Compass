@@ -31,6 +31,20 @@ export async function createOrganization(formData: FormData) {
     .maybeSingle();
   if (existing) redirect("/dashboard");
 
+  // Self-heal: make sure this user has a profile row before we create a
+  // membership (memberships.user_id -> profiles.id). The signup trigger
+  // normally creates it, but this covers accounts created before the trigger
+  // existed or via the Supabase dashboard.
+  const { error: profileErr } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      full_name: (user.user_metadata?.full_name as string) ?? null,
+      email: user.email,
+    },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
+  if (profileErr) throw new Error(profileErr.message);
+
   const { data: org, error: orgErr } = await supabase
     .from("organizations")
     .insert({ name: parsed.data.org_name })
