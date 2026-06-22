@@ -53,6 +53,7 @@ create index idx_subcategories_category on framework_subcategories(category_id);
 create table organizations (
   id         uuid primary key default gen_random_uuid(),
   name       text not null,
+  created_by uuid default auth.uid(),
   created_at timestamptz not null default now()
 );
 

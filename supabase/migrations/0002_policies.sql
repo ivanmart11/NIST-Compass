@@ -43,12 +43,16 @@ create policy fw_subcategories_read on framework_subcategories
 -- ===========================================================================
 alter table organizations enable row level security;
 
+-- A user can read orgs they are a member of, OR an org they just created
+-- (the creator clause lets onboarding read the row back via INSERT ... RETURNING
+-- before the owner membership row exists).
 create policy org_select on organizations
-  for select using (is_org_member(id));
+  for select using (created_by = auth.uid() or is_org_member(id));
 
--- Any authenticated user may create an org (they become owner via app logic).
+-- Any authenticated user may create an org, but only as its creator. The
+-- `created_by` column defaults to auth.uid(), so the app inserts only `name`.
 create policy org_insert on organizations
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (created_by = auth.uid());
 
 create policy org_update on organizations
   for update using (can_write_org(id)) with check (can_write_org(id));
