@@ -1,34 +1,27 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { createOrganization } from "./actions";
 import { Button } from "@/components/ui";
 
-function initialOrg() {
-  if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("org") ?? "";
-}
+export const dynamic = "force-dynamic";
 
-export default function OnboardingPage() {
-  const router = useRouter();
-  const [orgName, setOrgName] = useState(initialOrg);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: { org?: string };
+}) {
+  // Server-side guard: must be signed in to onboard.
+  await requireUser();
 
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ org_name: orgName }),
-    });
-    setLoading(false);
-    if (!res.ok) return setError("Could not create your organization.");
-    router.push("/dashboard");
-    router.refresh();
-  }
+  // If they already belong to an org, skip onboarding.
+  const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("memberships")
+    .select("org_id")
+    .limit(1)
+    .maybeSingle();
+  if (existing) redirect("/dashboard");
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-brand-50 px-4">
@@ -39,19 +32,19 @@ export default function OnboardingPage() {
         <p className="mb-6 text-center text-sm text-gray-500">
           This is the workspace your team will share.
         </p>
-        <form onSubmit={create} className="card space-y-4 p-6">
+        <form action={createOrganization} className="card space-y-4 p-6">
           <div>
             <label className="label">Organization name</label>
             <input
+              name="org_name"
               className="input"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
+              defaultValue={searchParams.org ?? ""}
+              placeholder="Acme Health"
               required
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Creating…" : "Continue"}
+          <Button type="submit" className="w-full">
+            Continue
           </Button>
         </form>
       </div>

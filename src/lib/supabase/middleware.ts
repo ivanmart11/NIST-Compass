@@ -41,8 +41,11 @@ export async function updateSession(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some(
     (p) => path === p || path.startsWith(`${p}/`)
   );
+  // API routes manage their own auth and return JSON errors — never redirect
+  // them to the login page (a fetch would silently follow the redirect).
+  const isApi = path.startsWith("/api");
 
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", path);
