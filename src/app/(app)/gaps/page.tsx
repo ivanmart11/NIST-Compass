@@ -36,7 +36,7 @@ export default async function GapsPage({
   let query = supabase
     .from("gaps")
     .select(
-      "id, title, risk_level, status, due_date, owner:profiles(full_name), sub:framework_subcategories(code)"
+      "id, title, risk_level, status, due_date, owner:profiles!gaps_owner_id_fkey(full_name), sub:framework_subcategories(code)"
     )
     .eq("org_id", orgId)
     .order("due_date", { ascending: true, nullsFirst: false });
@@ -48,7 +48,10 @@ export default async function GapsPage({
   if (risk && RISK_LEVELS.includes(risk as never)) query = query.eq("risk_level", risk);
   if (q) query = query.ilike("title", `%${q}%`);
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Failed to load gaps: ${error.message}`);
+  }
   const gaps = (data as unknown as GapRow[] | null) ?? [];
 
   return (
